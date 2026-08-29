@@ -16,6 +16,14 @@ RUN dpkg --add-architecture i386 && \
     && ln -sf /usr/bin/python2 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
+RUN real_java="$(readlink -f /usr/bin/java)" && \
+    real_javac="$(readlink -f /usr/bin/javac)" && \
+    mkdir -p /opt/java-shim && \
+    printf '#!/bin/bash\nif [ "$1" = "-version" ]; then\n  echo '\''java version "1.5.0_22"'\'' >&2\n  exit 0\nfi\nexec %s "$@"\n' "$real_java" > /opt/java-shim/java && \
+    printf '#!/bin/bash\nif [ "$1" = "-version" ]; then\n  echo '\''javac 1.5.0_22'\'' >&2\n  exit 0\nfi\nexec %s "$@"\n' "$real_javac" > /opt/java-shim/javac && \
+    chmod +x /opt/java-shim/java /opt/java-shim/javac
+ENV PATH="/opt/java-shim:${PATH}"
+
 # Install `repo` tool
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
     chmod a+x /usr/local/bin/repo
