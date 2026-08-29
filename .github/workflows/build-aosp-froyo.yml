@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 350
     steps:
-
+      
       - name: Checkout repo (Dockerfile + workflow)
         uses: actions/checkout@v4
 
@@ -64,9 +64,26 @@ jobs:
             bash -lc "
               set -e
               cd /aosp
+
+              # Froyo's build/core/main.mk hard-checks for Java 1.5 exactly
+              # (not 1.6 as older AOSP folklore sometimes claims — the
+              # actual failure message on openjdk-8 confirms 1.5). Override
+              # the shell-derived java_version var directly so the ifeq
+              # check passes, rather than trying to match the original
+              # grep pattern exactly.
+              sed -i 's|^java_version := .*|java_version := 1.5.0|' build/core/main.mk
+
+              # Froyo's tree predates AOSP bundling a ccache prebuilt at
+              # prebuilts/misc/linux-x86/ccache/ccache — that path simply
+              # doesn't exist yet in this branch. Point it at the ccache
+              # we apt-installed in the image instead, so USE_CCACHE=1
+              # actually works rather than failing on every compile unit.
+              mkdir -p prebuilts/misc/linux-x86/ccache
+              ln -sf \"\$(command -v ccache)\" prebuilts/misc/linux-x86/ccache/ccache
+              prebuilts/misc/linux-x86/ccache/ccache -M 20G
+
               source build/envsetup.sh
               lunch ${{ inputs.lunch_target }}
-              prebuilts/misc/linux-x86/ccache/ccache -M 20G || true
               make -j\$(nproc)
             "
 
@@ -76,6 +93,6 @@ jobs:
         with:
           name: aosp-froyo-images
           path: |
-            /mnt/build/aosp-src/out/target/product/*/*.img
-            /mnt/build/aosp-src/out/target/product/*/*.zip
+            ${{ env.AOSP_SRC }}/out/target/product/*/*.img
+            ${{ env.AOSP_SRC }}/out/target/product/*/*.zip
           if-no-files-found: warn
