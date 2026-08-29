@@ -64,14 +64,9 @@ jobs:
               set -e
               cd /aosp
 
-              # Froyo's build/core/main.mk hard-checks for Java 1.5 exactly
-              # (not 1.6 as older AOSP folklore sometimes claims — the
-              # actual failure messages on openjdk-8 confirm 1.5) via two
-              # separate variables: one for `java`, one for `javac`. Override
-              # both shell-derived vars directly so their ifeq checks pass,
-              # rather than trying to match the original grep patterns.
-              sed -i 's|^java_version := .*|java_version := 1.5.0|' build/core/main.mk
-              sed -i 's|^javac_version := .*|javac_version := 1.5.0|' build/core/main.mk
+              # Java/javac version checks are satisfied by the shims baked
+              # into the image (see Dockerfile.froyo) — nothing to patch
+              # here in the source tree itself.
 
               # Froyo's tree predates AOSP bundling a ccache prebuilt at
               # prebuilts/misc/linux-x86/ccache/ccache — that path simply
