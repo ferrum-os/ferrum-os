@@ -1,0 +1,81 @@
+name: Build AOSP 2.2 (Froyo) in Docker
+
+on:
+  workflow_dispatch:
+    inputs:
+      lunch_target:
+        description: "lunch combo to build"
+        required: false
+        default: "full-eng"
+      manifest_branch:
+        description: "AOSP manifest branch/tag"
+        required: false
+        default: "master"
+
+jobs:
+  build-aosp:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    steps:
+
+      - name: Checkout repo (Dockerfile + workflow)
+        uses: actions/checkout@v4
+
+      - name: Set build workspace env
+        run: |
+          mkdir -p "$RUNNER_WORKSPACE/aosp-src" "$RUNNER_WORKSPACE/ccache"
+          echo "AOSP_SRC=$RUNNER_WORKSPACE/aosp-src" >> "$GITHUB_ENV"
+          echo "AOSP_CCACHE=$RUNNER_WORKSPACE/ccache" >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.AOSP_CCACHE }}
+          key: aosp-froyo-ccache-${{ github.run_id }}
+          restore-keys: |
+            aosp-froyo-ccache-
+
+      - name: Build the Froyo-compatible builder image
+        run: |
+          docker build -t aosp-froyo-builder -f docker/Dockerfile.froyo docker
+
+      - name: repo init + sync (inside container)
+        run: |
+          docker run --rm \
+            -v "$AOSP_SRC":/aosp \
+            aosp-froyo-builder \
+            bash -lc "
+              set -e
+              cd /aosp
+              git config --global user.email 'ci@example.com'
+              git config --global user.name 'CI Bot'
+              repo init -u https://github.com/ferrum-os/manifest -b ${{ inputs.manifest_branch }}
+              repo sync -j4 --force-sync
+            "
+
+      - name: Build AOSP (make)
+        run: |
+          docker run --rm \
+            -e USE_CCACHE=1 \
+            -e CCACHE_DIR=/ccache \
+            -v "$AOSP_SRC":/aosp \
+            -v "$AOSP_CCACHE":/ccache \
+            aosp-froyo-builder \
+            bash -lc "
+              set -e
+              cd /aosp
+              source build/envsetup.sh
+              lunch ${{ inputs.lunch_target }}
+              prebuilts/misc/linux-x86/ccache/ccache -M 20G || true
+              make -j\$(nproc)
+            "
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aosp-froyo-images
+          path: |
+            /mnt/build/aosp-src/out/target/product/*/*.img
+            /mnt/build/aosp-src/out/target/product/*/*.zip
+          if-no-files-found: warn
