@@ -1,39 +1,19 @@
-# AOSP 2.2 (Froyo) needs a build environment close to what Android's own
-# docs specify for that era: 32-bit userland, GCC 4.4-ish, Java 6, Python 2.
-# ubuntu:16.04 is the newest base you can still coax this out of with
-# reasonable effort; anything older is no longer on Docker Hub's default
-# mirrors and has to be pulled from old-releases.ubuntu.com apt sources.
-FROM ubuntu:16.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Point apt at the archive mirror — 16.04 (Xenial) is EOL and dropped from
-# the regular Ubuntu mirrors, so the default sources.list 404s otherwise.
-RUN sed -i \
-      -e 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
-      -e 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
-      /etc/apt/sources.list
 
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
       git-core gnupg flex bison gperf build-essential \
       zip curl zlib1g-dev zlib1g:i386 \
-      libc6-dev lib32ncurses5-dev x11proto-core-dev \
-      libx11-dev lib32z1-dev ccache libgl1-mesa-dev \
+      libc6-dev lib32ncurses6 lib32ncurses-dev x11proto-core-dev \
+      libx11-dev lib32z1 lib32z1-dev ccache libgl1-mesa-dev \
       libxml2-utils xsltproc unzip \
-      python2.7 python-pip \
+      python2 python-is-python2 \
       openjdk-8-jdk \
       ca-certificates \
-    && ln -sf /usr/bin/python2.7 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
-
-# NOTE: Froyo's own docs call for Java 6, which is not installable on any
-# supported base image anymore. openjdk-8-jdk is the closest that still
-# apt-installs; you will likely need to patch build/core/main.mk's Java
-# version check (or export JAVA_VERSION overrides) since the source tree
-# hard-checks for `javac 1.6`. This is the single most common blocker
-# people hit trying to resurrect Froyo builds — expect to patch it.
 
 # Install `repo` tool
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
