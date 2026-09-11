@@ -16,15 +16,46 @@ RUN dpkg --add-architecture i386 && \
     && ln -sf /usr/bin/python2 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-RUN real_java="$(readlink -f /usr/bin/java)" && \
-    real_javac="$(readlink -f /usr/bin/javac)" && \
-    mkdir -p /opt/java-shim && \
-    printf '#!/bin/bash\nif [ "$1" = "-version" ]; then\n  echo '\''java version "1.5.0_22"'\'' >&2\n  exit 0\nfi\nexec %s "$@"\n' "$real_java" > /opt/java-shim/java && \
-    printf '#!/bin/bash\nif [ "$1" = "-version" ]; then\n  echo '\''javac 1.5.0_22'\'' >&2\n  exit 0\nfi\nexec %s "$@"\n' "$real_javac" > /opt/java-shim/javac && \
-    chmod +x /opt/java-shim/java /opt/java-shim/javac
+RUN mkdir -p /opt/java-shim
+
+COPY <<'EOF' /opt/java-shim/java
+#!/bin/bash
+if [ "$1" = "-version" ]; then
+  echo 'java version "1.5.0_22"' >&2
+  exit 0
+fi
+exec /usr/lib/jvm/java-8-openjdk-amd64/bin/java "$@"
+EOF
+
+COPY <<'EOF' /opt/java-shim/javac
+#!/bin/bash
+if [ "$1" = "-version" ]; then
+  echo 'javac 1.5.0_22' >&2
+  exit 0
+fi
+
+args=("$@")
+has_source=0
+target_val=""
+for a in "${args[@]}"; do
+  [ "$a" = "-source" ] && has_source=1
+done
+for i in "${!args[@]}"; do
+  if [ "${args[$i]}" = "-target" ]; then
+    next=$((i + 1))
+    target_val="${args[$next]}"
+    break
+  fi
+done
+if [ "$has_source" = "0" ] && [ -n "$target_val" ]; then
+  args=("-source" "$target_val" "${args[@]}")
+fi
+exec /usr/lib/jvm/java-8-openjdk-amd64/bin/javac "${args[@]}"
+EOF
+
+RUN chmod +x /opt/java-shim/java /opt/java-shim/javac
 ENV PATH="/opt/java-shim:${PATH}"
 
-# Install `repo` tool
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
     chmod a+x /usr/local/bin/repo
 
