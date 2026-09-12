@@ -11,10 +11,14 @@ RUN dpkg --add-architecture i386 && \
       libx11-dev lib32z1 lib32z1-dev ccache libgl1-mesa-dev \
       libxml2-utils xsltproc unzip \
       python2 python3 \
-      openjdk-8-jdk \
       ca-certificates \
     && ln -sf /usr/bin/python2 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/jdk6 && \
+    curl -fsSL https://cdn.azul.com/zulu/bin/zulu6.22.0.3-jdk6.0.119-linux_x64.tar.gz -o /tmp/zulu6.tar.gz && \
+    tar -xzf /tmp/zulu6.tar.gz -C /opt/jdk6 --strip-components=1 && \
+    rm /tmp/zulu6.tar.gz
 
 RUN mkdir -p /opt/java-shim
 
@@ -24,7 +28,7 @@ if [ "$1" = "-version" ]; then
   echo 'java version "1.5.0_22"' >&2
   exit 0
 fi
-exec /usr/lib/jvm/java-8-openjdk-amd64/bin/java "$@"
+exec /opt/jdk6/bin/java "$@"
 EOF
 
 COPY <<'EOF' /opt/java-shim/javac
@@ -33,24 +37,7 @@ if [ "$1" = "-version" ]; then
   echo 'javac 1.5.0_22' >&2
   exit 0
 fi
-
-args=("$@")
-has_source=0
-target_val=""
-for a in "${args[@]}"; do
-  [ "$a" = "-source" ] && has_source=1
-done
-for i in "${!args[@]}"; do
-  if [ "${args[$i]}" = "-target" ]; then
-    next=$((i + 1))
-    target_val="${args[$next]}"
-    break
-  fi
-done
-if [ "$has_source" = "0" ] && [ -n "$target_val" ]; then
-  args=("-source" "$target_val" "${args[@]}")
-fi
-exec /usr/lib/jvm/java-8-openjdk-amd64/bin/javac "${args[@]}"
+exec /opt/jdk6/bin/javac "$@"
 EOF
 
 RUN chmod +x /opt/java-shim/java /opt/java-shim/javac
