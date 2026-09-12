@@ -47,6 +47,21 @@ RUN chmod +x /opt/java-shim/bin/java /opt/java-shim/bin/javac
 ENV PATH="/opt/java-shim/bin:/opt/jdk6/bin:${PATH}"
 ENV JAVA_HOME=/opt/jdk6
 
+RUN curl -fsSL https://www.cpan.org/src/5.0/perl-5.14.4.tar.gz -o /tmp/perl514.tar.gz && \
+    mkdir -p /tmp/perl-build && \
+    tar -xzf /tmp/perl514.tar.gz -C /tmp/perl-build --strip-components=1 && \
+    cd /tmp/perl-build && \
+    ./Configure -des -Dprefix=/opt/perl514 && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd / && rm -rf /tmp/perl-build /tmp/perl514.tar.gz
+
+# Install Switch.pm for THIS perl specifically — libswitch-perl installed
+# earlier only covers system perl 5.34's @INC, not /opt/perl514's.
+RUN curl -fsSL https://cpanmin.us | /opt/perl514/bin/perl - --notest Switch
+
+ENV PATH="/opt/perl514/bin:${PATH}"
+
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
     chmod a+x /usr/local/bin/repo
 
