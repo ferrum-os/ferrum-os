@@ -11,6 +11,7 @@ RUN dpkg --add-architecture i386 && \
       libx11-dev lib32z1 lib32z1-dev ccache libgl1-mesa-dev \
       libxml2-utils xsltproc unzip \
       python2 python3 \
+      libswitch-perl \
       ca-certificates \
     && ln -sf /usr/bin/python2 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
