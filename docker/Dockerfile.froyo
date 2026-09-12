@@ -47,6 +47,28 @@ RUN chmod +x /opt/java-shim/bin/java /opt/java-shim/bin/javac
 ENV PATH="/opt/java-shim/bin:/opt/jdk6/bin:${PATH}"
 ENV JAVA_HOME=/opt/jdk6
 
+RUN mkdir -p /opt/cc-shim/bin
+COPY <<'EOF' /opt/cc-shim/bin/cc-shim-wrapper
+#!/bin/bash
+# $1 is the real compiler this wrapper stands in for (cc/gcc/g++/c++).
+real="$1"; shift
+has_E=0
+for a in "$@"; do
+  [ "$a" = "-E" ] && has_E=1
+done
+if [ "$has_E" = "1" ]; then
+  exec "$real" -P "$@"
+fi
+exec "$real" "$@"
+EOF
+RUN chmod +x /opt/cc-shim/bin/cc-shim-wrapper && \
+    for name in cc gcc c++ g++; do \
+      real="$(command -v "$name")" && \
+      printf '#!/bin/bash\nexec /opt/cc-shim/bin/cc-shim-wrapper %s "$@"\n' "$real" > "/opt/cc-shim/bin/$name" && \
+      chmod +x "/opt/cc-shim/bin/$name"; \
+    done
+ENV PATH="/opt/cc-shim/bin:${PATH}"
+
 RUN curl -fsSL https://www.cpan.org/src/5.0/perl-5.14.4.tar.gz -o /tmp/perl514.tar.gz && \
     mkdir -p /tmp/perl-build && \
     tar -xzf /tmp/perl514.tar.gz -C /tmp/perl-build --strip-components=1 && \
