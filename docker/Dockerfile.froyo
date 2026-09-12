@@ -44,6 +44,8 @@ RUN chmod +x /opt/java-shim/java /opt/java-shim/javac
 
 ENV PATH="/opt/java-shim:/opt/jdk6/bin:${PATH}"
 
+ENV JAVA_HOME=/opt/jdk6
+
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
     chmod a+x /usr/local/bin/repo
 
