@@ -20,9 +20,10 @@ RUN mkdir -p /opt/jdk6 && \
     tar -xzf /tmp/zulu6.tar.gz -C /opt/jdk6 --strip-components=1 && \
     rm /tmp/zulu6.tar.gz
 
-RUN mkdir -p /opt/java-shim
+RUN mkdir -p /opt/java-shim/bin /opt/java-shim/lib && \
+    ln -sf /opt/jdk6/lib/tools.jar /opt/java-shim/lib/tools.jar
 
-COPY <<'EOF' /opt/java-shim/java
+COPY <<'EOF' /opt/java-shim/bin/java
 #!/bin/bash
 if [ "$1" = "-version" ]; then
   echo 'java version "1.5.0_22"' >&2
@@ -31,7 +32,7 @@ fi
 exec /opt/jdk6/bin/java "$@"
 EOF
 
-COPY <<'EOF' /opt/java-shim/javac
+COPY <<'EOF' /opt/java-shim/bin/javac
 #!/bin/bash
 if [ "$1" = "-version" ]; then
   echo 'javac 1.5.0_22' >&2
@@ -40,10 +41,9 @@ fi
 exec /opt/jdk6/bin/javac "$@"
 EOF
 
-RUN chmod +x /opt/java-shim/java /opt/java-shim/javac
+RUN chmod +x /opt/java-shim/bin/java /opt/java-shim/bin/javac
 
-ENV PATH="/opt/java-shim:/opt/jdk6/bin:${PATH}"
-
+ENV PATH="/opt/java-shim/bin:/opt/jdk6/bin:${PATH}"
 ENV JAVA_HOME=/opt/jdk6
 
 RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo && \
