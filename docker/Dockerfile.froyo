@@ -53,10 +53,12 @@ COPY <<'EOF' /opt/cc-shim/bin/cc-shim-wrapper
 # $1 is the real compiler this wrapper stands in for (cc/gcc/g++/c++).
 real="$1"; shift
 has_E=0
+has_cxx=0
 for a in "$@"; do
   [ "$a" = "-E" ] && has_E=1
+  [ "$a" = "c++" ] && has_cxx=1
 done
-if [ "$has_E" = "1" ]; then
+if [ "$has_E" = "1" ] && [ "$has_cxx" = "1" ]; then
   exec "$real" -P "$@"
 fi
 exec "$real" "$@"
